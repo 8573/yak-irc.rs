@@ -22,12 +22,6 @@ pub mod msg_ctx;
 pub mod reaction;
 pub mod session;
 
-pub mod prelude {
-    pub use super::session;
-    pub use super::super::Message as IrcMessage;
-    pub use super::super::connection::prelude::*;
-}
-
 mod action;
 mod err;
 

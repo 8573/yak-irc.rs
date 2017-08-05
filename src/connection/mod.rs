@@ -6,15 +6,6 @@ use mio;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 
-// TODO: Delete in split-out.
-pub mod prelude {
-    pub use super::Connection;
-    pub use super::GetPeerAddr;
-    pub use super::PlaintextConnection;
-    pub use super::ReceiveMessage;
-    pub use super::SendMessage;
-}
-
 mod err;
 mod generic;
 mod plaintext;

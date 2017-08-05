@@ -1,4 +1,4 @@
-use irc::Message;
+use Message;
 
 #[derive(Debug)]
 pub enum Reaction<Msg>

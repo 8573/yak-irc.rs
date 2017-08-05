@@ -1,7 +1,7 @@
 pub use self::err::*;
 pub use self::generic::GenericConnection;
 pub use self::plaintext::PlaintextConnection;
-use irc::Message;
+use Message;
 use mio;
 use std::fmt::Debug;
 use std::net::SocketAddr;

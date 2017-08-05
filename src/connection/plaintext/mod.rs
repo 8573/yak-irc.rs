@@ -5,7 +5,7 @@ use super::IRC_LINE_MAX_LEN;
 use super::ReceiveMessage;
 use super::Result;
 use super::SendMessage;
-use irc::Message;
+use Message;
 use mio;
 use std::borrow::Cow;
 use std::io::BufRead;

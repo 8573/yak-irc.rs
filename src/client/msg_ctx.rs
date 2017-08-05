@@ -1,6 +1,6 @@
 use super::Client;
 use super::SessionId;
-use irc::Message;
+use Message;
 
 #[derive(Debug)]
 pub struct MessageContext {

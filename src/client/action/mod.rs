@@ -1,5 +1,5 @@
 use super::SessionId;
-use irc::Message;
+use Message;
 
 pub enum Action<Msg>
 where

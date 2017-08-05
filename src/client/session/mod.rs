@@ -1,9 +1,9 @@
-use irc::Message;
-use irc::client::Result;
-use irc::connection;
-use irc::connection::GenericConnection;
-use irc::connection::GetMioTcpStream;
-use irc::connection::prelude::*;
+use Message;
+use client::Result;
+use connection;
+use connection::GenericConnection;
+use connection::GetMioTcpStream;
+use connection::prelude::*;
 use mio;
 use pircolate;
 use std::borrow::Cow;

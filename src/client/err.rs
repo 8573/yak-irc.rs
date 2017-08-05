@@ -1,5 +1,5 @@
-use irc::connection;
-use irc::message;
+use connection;
+use message;
 use pircolate;
 use std::io;
 

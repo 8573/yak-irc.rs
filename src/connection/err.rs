@@ -1,4 +1,4 @@
-use irc::message;
+use message;
 use pircolate;
 use std::io;
 use std::str;

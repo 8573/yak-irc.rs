@@ -6,7 +6,7 @@ use super::PlaintextConnection;
 use super::ReceiveMessage;
 use super::Result;
 use super::SendMessage;
-use irc::Message;
+use Message;
 use mio;
 use std::io::BufRead;
 use std::io::BufReader;

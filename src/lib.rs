@@ -1,4 +1,5 @@
 extern crate mio;
+extern crate string_cache;
 
 #[macro_use]
 extern crate error_chain;

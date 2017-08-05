@@ -12,6 +12,7 @@ lazy_static = "0.2"
 log = "0.3"
 mio = "0.6"
 pircolate = {version = "0.2", optional = true}
+string_cache = "0.6"
 
 [dev-dependencies]
 quickcheck = "0.4"

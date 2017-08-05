@@ -14,11 +14,14 @@ use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
+use string_cache::DefaultAtom as CachedString;
 
 lazy_static! {
-    static ref DEFAULT_REALNAME: String = format!("Connected with <{url}> v{ver}",
-                                                  url = env!("CARGO_PKG_HOMEPAGE"),
-                                                  ver = env!("CARGO_PKG_VERSION"));
+    static ref DEFAULT_REALNAME: CachedString = format!(
+            "Connected with <{url}> v{ver}",
+            url = env!("CARGO_PKG_HOMEPAGE"),
+            ver = env!("CARGO_PKG_VERSION")
+        ).into();
 }
 
 #[derive(Debug)]
@@ -27,25 +30,24 @@ where
     Conn: Connection,
 {
     connection: Conn,
-    // TODO: Use string_cache.
-    nickname: String,
-    username: String,
-    realname: String,
+    nickname: CachedString,
+    username: CachedString,
+    realname: CachedString,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct SessionBuilder<
     Conn,
     ConnField = Option<Conn>,
-    NicknameField = Option<String>,
-    UsernameField = Option<String>,
-    RealnameField = Option<String>,
+    NicknameField = Option<CachedString>,
+    UsernameField = Option<CachedString>,
+    RealnameField = Option<CachedString>,
 > where
     Conn: Connection,
     ConnField: Into<Option<Conn>>,
-    NicknameField: Into<Option<String>>,
-    UsernameField: Into<Option<String>>,
-    RealnameField: Into<Option<String>>,
+    NicknameField: Into<Option<CachedString>>,
+    UsernameField: Into<Option<CachedString>>,
+    RealnameField: Into<Option<CachedString>>,
 {
     connection: ConnField,
     nickname: NicknameField,
@@ -59,9 +61,9 @@ impl<Conn, ConnField, NicknameField, UsernameField, RealnameField>
 where
     Conn: Connection,
     ConnField: Into<Option<Conn>>,
-    NicknameField: Into<Option<String>>,
-    UsernameField: Into<Option<String>>,
-    RealnameField: Into<Option<String>>,
+    NicknameField: Into<Option<CachedString>>,
+    UsernameField: Into<Option<CachedString>>,
+    RealnameField: Into<Option<CachedString>>,
 {
     pub fn connection(
         self,
@@ -87,9 +89,9 @@ where
     pub fn nickname<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, String, UsernameField, RealnameField>
+    ) -> SessionBuilder<Conn, ConnField, CachedString, UsernameField, RealnameField>
     where
-        S: Into<String>,
+        S: Into<CachedString>,
     {
         let SessionBuilder {
             connection,
@@ -111,9 +113,9 @@ where
     pub fn username<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, NicknameField, String, RealnameField>
+    ) -> SessionBuilder<Conn, ConnField, NicknameField, CachedString, RealnameField>
     where
-        S: Into<String>,
+        S: Into<CachedString>,
     {
         let SessionBuilder {
             connection,
@@ -135,9 +137,9 @@ where
     pub fn realname<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, NicknameField, UsernameField, String>
+    ) -> SessionBuilder<Conn, ConnField, NicknameField, UsernameField, CachedString>
     where
-        S: Into<String>,
+        S: Into<CachedString>,
     {
         let SessionBuilder {
             connection,
@@ -171,11 +173,11 @@ where
 }
 
 impl<Conn, UsernameField, RealnameField>
-    SessionBuilder<Conn, Conn, String, UsernameField, RealnameField>
+    SessionBuilder<Conn, Conn, CachedString, UsernameField, RealnameField>
 where
     Conn: Connection,
-    UsernameField: Into<Option<String>>,
-    RealnameField: Into<Option<String>>,
+    UsernameField: Into<Option<CachedString>>,
+    RealnameField: Into<Option<CachedString>>,
     Self: fmt::Debug,
 {
     pub fn start(mut self) -> Result<Session<Conn>> {

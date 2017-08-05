@@ -109,13 +109,14 @@ where
     {
         let index = self.sessions.len();
 
-        if index == std::usize::MAX {
-            // `usize::MAX` would mean that the upcoming `Vec::push` call would cause an overflow,
-            // assuming the system had somehow not run out of memory.
+        // `usize::MAX` would mean that the upcoming `Vec::push` call would cause an overflow,
+        // assuming the system had somehow not run out of memory.
+        ensure!(index < std::usize::MAX, ErrorKind::TooManySessions);
 
-            // TODO: return an error.
-            unreachable!()
-        }
+        let id = SessionId { index };
+
+        // Ensure that the session index can be converted to a Mio token.
+        let mio::Token(_) = EventContextId::Session(id).to_mio_token()?;
 
         self.sessions.push(SessionEntry {
             inner: session.into_generic(),
@@ -123,7 +124,7 @@ where
             is_writable: false,
         });
 
-        Ok(SessionId { index: index })
+        Ok(id)
     }
 
     pub fn run<MsgHandler>(mut self, msg_handler: MsgHandler) -> Result<()>

@@ -12,6 +12,10 @@ extern crate log;
 #[cfg(feature = "pircolate")]
 extern crate pircolate;
 
+#[cfg(test)]
+#[macro_use]
+extern crate quickcheck;
+
 pub use self::message::Message;
 
 pub mod connection;

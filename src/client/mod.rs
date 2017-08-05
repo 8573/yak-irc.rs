@@ -25,6 +25,7 @@ pub mod session;
 
 mod action;
 mod err;
+mod tests;
 
 #[derive(Debug)]
 pub struct Client<Msg>
@@ -59,6 +60,7 @@ where
 }
 
 #[derive(Clone, Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct SessionId {
     index: usize,
 }
@@ -70,6 +72,7 @@ const MPSC_QUEUE_SIZE_LIMIT: usize = 1024;
 /// The context could be an IRC session, or it could be the MPSC queue via which the library
 /// consumer can asynchronously send messages and other actions to this library.
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq))]
 enum EventContextId {
     MpscQueue,
     Session(SessionId),
@@ -393,7 +396,6 @@ where
 
 impl EventContextId {
     fn to_mio_token(&self) -> Result<mio::Token> {
-        // TODO: Use QuickCheck to test that this function is bijective.
         let token_number = match self {
             &EventContextId::MpscQueue => 0,
             // TODO: Check for overflow.
@@ -404,8 +406,6 @@ impl EventContextId {
     }
 }
 
-// TODO: Use QuickCheck to test that conversion between `EventContextId` and `mio::Token`
-// round-trips properly.
 impl From<mio::Token> for EventContextId {
     fn from(mio::Token(token_number): mio::Token) -> Self {
         match token_number {

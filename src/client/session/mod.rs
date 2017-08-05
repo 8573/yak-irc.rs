@@ -1,9 +1,9 @@
 use Message;
 use client::Result;
 use connection;
+use connection::Connection;
 use connection::GenericConnection;
 use connection::GetMioTcpStream;
-use connection::Connection;
 use connection::GetPeerAddr;
 use connection::ReceiveMessage;
 use connection::SendMessage;

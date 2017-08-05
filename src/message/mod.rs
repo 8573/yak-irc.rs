@@ -1,4 +1,5 @@
 pub use self::err::*;
+#[cfg(feature = "pircolate")]
 use pircolate;
 use std::borrow::Cow;
 use std::str;
@@ -33,7 +34,7 @@ pub trait Message: Clone {
     fn command_bytes(&self) -> &[u8];
 }
 
-// TODO: Condition `Message` implementations on Cargo features.
+#[cfg(feature = "pircolate")]
 impl Message for pircolate::Message {
     fn try_from<'a>(input: Cow<'a, [u8]>) -> Result<Self> {
         Ok(Self::try_from(String::from_utf8(input.into_owned())?)?)

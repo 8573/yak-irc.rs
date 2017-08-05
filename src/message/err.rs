@@ -1,3 +1,4 @@
+#[cfg(feature = "pircolate")]
 use pircolate;
 use std::error;
 use std::str;
@@ -10,7 +11,8 @@ error_chain! {
     }
 
     links {
-        Pircolate(pircolate::error::Error, pircolate::error::ErrorKind);
+        Pircolate(pircolate::error::Error, pircolate::error::ErrorKind)
+            #[cfg(feature = "pircolate")];
     }
 
     errors {

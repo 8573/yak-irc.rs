@@ -8,6 +8,7 @@ use connection::GetPeerAddr;
 use connection::ReceiveMessage;
 use connection::SendMessage;
 use mio;
+#[cfg(feature = "pircolate")]
 use pircolate;
 use std::borrow::Cow;
 use std::fmt;

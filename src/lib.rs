@@ -1,5 +1,4 @@
 extern crate mio;
-extern crate pircolate;
 
 #[macro_use]
 extern crate error_chain;
@@ -9,6 +8,9 @@ extern crate lazy_static;
 
 #[macro_use]
 extern crate log;
+
+#[cfg(feature = "pircolate")]
+extern crate pircolate;
 
 pub use self::message::Message;
 

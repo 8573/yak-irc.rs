@@ -11,6 +11,7 @@ use connection::GetMioTcpStream;
 use connection::ReceiveMessage;
 use connection::SendMessage;
 use mio;
+#[cfg(feature = "pircolate")]
 use pircolate;
 use std;
 use std::borrow::Cow;

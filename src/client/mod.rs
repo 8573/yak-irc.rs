@@ -59,7 +59,7 @@ where
     is_writable: bool,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct SessionId {
     index: usize,
@@ -163,7 +163,7 @@ where
             for event in &events {
                 match event.token().into() {
                     EventContextId::MpscQueue => process_mpsc_queue(&mut self),
-                    EventContextId::Session(ref session_id) => {
+                    EventContextId::Session(session_id) => {
                         let ref mut session = self.sessions[session_id.index];
                         process_session_event(event.readiness(), session, session_id, &msg_handler)
                     }
@@ -178,7 +178,7 @@ where
 fn process_session_event<Msg, MsgHandler>(
     readiness: mio::Ready,
     session: &mut SessionEntry<Msg>,
-    session_id: &SessionId,
+    session_id: SessionId,
     msg_handler: &MsgHandler,
 ) where
     Msg: Message,
@@ -199,13 +199,13 @@ fn process_session_event<Msg, MsgHandler>(
 
 fn process_readable<Msg, MsgHandler>(
     session: &mut SessionEntry<Msg>,
-    session_id: &SessionId,
+    session_id: SessionId,
     msg_handler: &MsgHandler,
 ) where
     Msg: Message,
     MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
 {
-    let msg_ctx = MessageContext { session_id: session_id.clone() };
+    let msg_ctx = MessageContext { session_id };
 
     loop {
         let msg = match session.inner.recv::<Msg>() {
@@ -224,7 +224,7 @@ fn process_readable<Msg, MsgHandler>(
     }
 }
 
-fn process_writable<Msg>(session: &mut SessionEntry<Msg>, session_id: &SessionId)
+fn process_writable<Msg>(session: &mut SessionEntry<Msg>, session_id: SessionId)
 where
     Msg: Message,
 {
@@ -281,7 +281,7 @@ where
 
 fn process_reaction<Msg>(
     session: &mut SessionEntry<Msg>,
-    session_id: &SessionId,
+    session_id: SessionId,
     reaction: Reaction<Msg>,
 ) where
     Msg: Message,
@@ -313,7 +313,7 @@ where
     match action {
         Action::None => {}
         Action::RawMsg {
-            ref session_id,
+            session_id,
             ref message,
         } => {
             let ref mut session = client.sessions[session_id.index];
@@ -366,7 +366,7 @@ impl<Msg> SessionEntry<Msg>
 where
     Msg: Message,
 {
-    fn send(&mut self, session_id: &SessionId, msg: &Msg) {
+    fn send(&mut self, session_id: SessionId, msg: &Msg) {
         match self.inner.try_send(msg) {
             Ok(()) => {
                 // TODO: log the `session_id`.

@@ -398,8 +398,20 @@ impl EventContextId {
     fn to_mio_token(&self) -> Result<mio::Token> {
         let token_number = match self {
             &EventContextId::MpscQueue => 0,
-            // TODO: Check for overflow.
-            &EventContextId::Session(SessionId { index }) => 1 + index,
+            &EventContextId::Session(SessionId { index }) => {
+                match index.checked_add(1) {
+                    Some(std::usize::MAX) => {
+                        // The conversion would result in `mio::Token(std::usize::MAX)`, which Mio
+                        // uses as a special, reserved marker value.
+                        bail!(ErrorKind::TooManySessions)
+                    }
+                    None => {
+                        // The conversion would result in overflow in integer addition.
+                        bail!(ErrorKind::TooManySessions)
+                    }
+                    Some(n) => n,
+                }
+            }
         };
 
         Ok(mio::Token(token_number))

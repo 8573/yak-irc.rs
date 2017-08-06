@@ -14,6 +14,10 @@ pub trait Message: Clone + fmt::Debug {
 
     fn as_bytes(&self) -> &[u8];
 
+    fn as_str(&self) -> Option<&str> {
+        None
+    }
+
     fn to_str(&self) -> Result<&str> {
         Ok(match self.as_str() {
             Some(s) => s,
@@ -26,10 +30,6 @@ pub trait Message: Clone + fmt::Debug {
             Some(s) => Cow::Borrowed(s),
             None => String::from_utf8_lossy(self.as_bytes()),
         }
-    }
-
-    fn as_str(&self) -> Option<&str> {
-        None
     }
 
     fn command_bytes(&self) -> &[u8];

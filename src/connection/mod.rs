@@ -10,9 +10,6 @@ mod err;
 mod generic;
 mod plaintext;
 
-#[cfg(auto_send_recv_threads)]
-mod auto_threading;
-
 const IRC_LINE_MAX_LEN: usize = 1024;
 
 pub trait Connection

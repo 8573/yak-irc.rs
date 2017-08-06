@@ -2,11 +2,12 @@ pub use self::err::*;
 #[cfg(feature = "pircolate")]
 use pircolate;
 use std::borrow::Cow;
+use std::fmt;
 use std::str;
 
 mod err;
 
-pub trait Message: Clone {
+pub trait Message: Clone + fmt::Debug {
     fn try_from<'a>(Cow<'a, [u8]>) -> Result<Self>
     where
         Self: Sized;

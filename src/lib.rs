@@ -1,4 +1,5 @@
 extern crate mio;
+extern crate smallvec;
 extern crate string_cache;
 
 #[macro_use]
@@ -22,3 +23,5 @@ pub use self::message::Message;
 pub mod connection;
 pub mod client;
 pub mod message;
+
+mod util;

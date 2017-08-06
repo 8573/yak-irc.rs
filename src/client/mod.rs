@@ -13,11 +13,13 @@ use connection::SendMessage;
 use mio;
 #[cfg(feature = "pircolate")]
 use pircolate;
+use smallvec::SmallVec;
 use std;
 use std::borrow::Cow;
 use std::io;
 use std::io::Write;
 use std::sync::mpsc;
+use util;
 
 pub mod msg_ctx;
 pub mod reaction;
@@ -32,8 +34,7 @@ pub struct Client<Msg>
 where
     Msg: Message,
 {
-    // TODO: use smallvec.
-    sessions: Vec<SessionEntry<Msg>>,
+    sessions: SmallVec<[SessionEntry<Msg>; 3]>,
     mpsc_receiver: mpsc::Receiver<Action<Msg>>,
     mpsc_registration: mio::Registration,
     handle_prototype: ClientHandle<Msg>,
@@ -54,8 +55,7 @@ where
     Msg: Message,
 {
     inner: Session<GenericConnection>,
-    // TODO: use smallvec.
-    output_queue: Vec<Msg>,
+    output_queue: SmallVec<[Msg; 3]>,
     is_writable: bool,
 }
 
@@ -83,7 +83,7 @@ where
     Msg: Message,
 {
     pub fn new() -> Self {
-        let sessions = Vec::new();
+        let sessions = SmallVec::new();
         let (mpsc_sender, mpsc_receiver) = mpsc::sync_channel(MPSC_QUEUE_SIZE_LIMIT);
         let (mpsc_registration, readiness_setter) = mio::Registration::new2();
         let handle_prototype = ClientHandle {
@@ -109,8 +109,8 @@ where
     {
         let index = self.sessions.len();
 
-        // `usize::MAX` would mean that the upcoming `Vec::push` call would cause an overflow,
-        // assuming the system had somehow not run out of memory.
+        // `usize::MAX` would mean that the upcoming `push` call would cause an overflow, assuming
+        // the system had somehow not run out of memory.
         ensure!(index < std::usize::MAX, ErrorKind::TooManySessions);
 
         let id = SessionId { index };
@@ -120,7 +120,7 @@ where
 
         self.sessions.push(SessionEntry {
             inner: session.into_generic(),
-            output_queue: Vec::new(),
+            output_queue: SmallVec::new(),
             is_writable: false,
         });
 
@@ -190,7 +190,7 @@ fn process_session_event<Msg, MsgHandler>(
     }
 
     if session.is_writable {
-        process_writable(session, session_id);
+        process_writable(session, session_id, msg_handler);
     }
 
     if readiness.is_readable() {
@@ -225,9 +225,13 @@ fn process_readable<Msg, MsgHandler>(
     }
 }
 
-fn process_writable<Msg>(session: &mut SessionEntry<Msg>, session_id: SessionId)
-where
+fn process_writable<Msg, MsgHandler>(
+    session: &mut SessionEntry<Msg>,
+    session_id: SessionId,
+    msg_handler: &MsgHandler,
+) where
     Msg: Message,
+    MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
 {
     let mut msgs_consumed = 0;
 
@@ -251,7 +255,17 @@ where
         }
     }
 
-    session.output_queue.drain(..msgs_consumed);
+    util::smallvec::discard_front(&mut session.output_queue, msgs_consumed)
+        .chain_err(|| {
+            ErrorKind::InternalLogicError(
+                "Tried to discard more messages from an outgoing message queue than it contained."
+                    .into(),
+            )
+        })
+        .unwrap_or_else(|err| {
+            let msg_ctx = MessageContext { session_id };
+            process_reaction(session, session_id, msg_handler(&msg_ctx, Err(err)))
+        });
 }
 
 fn handle_message<Msg, MsgHandler>(

@@ -2,6 +2,7 @@ use connection;
 use message;
 #[cfg(feature = "pircolate")]
 use pircolate;
+use std::borrow::Cow;
 use std::io;
 
 error_chain! {
@@ -17,6 +18,10 @@ error_chain! {
     }
 
     errors {
+        InternalLogicError(desc: Cow<'static, str>) {
+            description(concat!("there is an error in the programming of `", module_path!(), "`"))
+            display("There is an error in the programming of `{}`: {}", module_path!(), desc)
+        }
         TooManySessions {
             description("an operation has failed because the client has too many sessions")
             display("An operation has failed because the client has too many sessions")

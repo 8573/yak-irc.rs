@@ -4,6 +4,7 @@ use message;
 use pircolate;
 use std::borrow::Cow;
 use std::io;
+use util;
 
 error_chain! {
     foreign_links {
@@ -11,6 +12,7 @@ error_chain! {
     }
 
     links {
+        IrcUtil(util::irc::Error, util::irc::ErrorKind);
         Message(message::Error, message::ErrorKind);
         Connection(connection::Error, connection::ErrorKind);
         Pircolate(pircolate::error::Error, pircolate::error::ErrorKind)

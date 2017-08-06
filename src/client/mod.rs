@@ -13,10 +13,10 @@ use connection::SendMessage;
 use mio;
 use smallvec::SmallVec;
 use std;
-use std::borrow::Cow;
 use std::io;
 use std::sync::mpsc;
 use util;
+use util::irc::pong_from_ping;
 
 pub mod msg_ctx;
 pub mod reaction;
@@ -277,7 +277,7 @@ where
             if msg.command_bytes() == b"PING" {
                 match pong_from_ping(msg) {
                     Ok(pong) => return Reaction::RawMsg(pong),
-                    Err(err) => Err(err),
+                    Err(err) => Err(err.into()),
                 }
             } else {
                 Ok(msg)
@@ -329,20 +329,6 @@ where
             session.send(session_id, message)
         }
     }
-}
-
-// TODO: Write test cases.
-fn pong_from_ping<Msg>(msg: Msg) -> Result<Msg>
-where
-    Msg: Message,
-{
-    let mut pong_bytes = msg.as_bytes().to_owned();
-
-    // TODO: Skip over prefix and IRCv3 tags, if any, rather than assuming that the message starts
-    // with the command, "PING". (<http://ircv3.net/specs/core/message-tags-3.2.html>)
-    pong_bytes[1] = b'O';
-
-    Ok(Msg::try_from(Cow::Owned(pong_bytes))?)
 }
 
 impl<Msg> ClientHandle<Msg>

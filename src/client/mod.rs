@@ -15,7 +15,6 @@ use smallvec::SmallVec;
 use std;
 use std::io;
 use std::sync::mpsc;
-use string_cache::DefaultAtom as CachedString;
 use util;
 use util::irc::pong_from_ping;
 
@@ -99,31 +98,6 @@ where
 
     pub fn handle(&self) -> ClientHandle<Msg> {
         self.handle_prototype.clone()
-    }
-
-    pub fn new_session<Conn, SN, SU, SR, OSU, OSR>(
-        &mut self,
-        nickname: SN,
-        username: OSU,
-        realname: OSR,
-        connection: Conn,
-    ) -> Result<SessionId>
-    where
-        Conn: Connection,
-        SN: Into<CachedString>,
-        SU: Into<CachedString>,
-        SR: Into<CachedString>,
-        OSU: Into<Option<SN>>,
-        OSR: Into<Option<SU>>,
-    {
-        let builder = session::build().connection(connection).nickname(nickname);
-
-        match (username.into(), realname.into()) {
-            (Some(un), Some(rn)) => self.add_session(builder.username(un).realname(rn).start()?),
-            (Some(un), None) => self.add_session(builder.username(un).start()?),
-            (None, Some(rn)) => self.add_session(builder.realname(rn).start()?),
-            (None, None) => self.add_session(builder.start()?),
-        }
     }
 
     pub fn add_session<Conn>(&mut self, session: Session<Conn>) -> Result<SessionId>

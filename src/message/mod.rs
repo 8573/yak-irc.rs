@@ -15,20 +15,20 @@ pub trait Message: Clone + fmt::Debug {
     fn as_bytes(&self) -> &[u8];
 
     fn to_str(&self) -> Result<&str> {
-        Ok(match self.as_str_effortless() {
+        Ok(match self.as_str() {
             Some(s) => s,
             None => str::from_utf8(self.as_bytes())?,
         })
     }
 
     fn to_str_lossy<'a>(&'a self) -> Cow<'a, str> {
-        match self.as_str_effortless() {
+        match self.as_str() {
             Some(s) => Cow::Borrowed(s),
             None => String::from_utf8_lossy(self.as_bytes()),
         }
     }
 
-    fn as_str_effortless(&self) -> Option<&str> {
+    fn as_str(&self) -> Option<&str> {
         None
     }
 
@@ -45,7 +45,7 @@ impl Message for pircolate::Message {
         self.raw_message().as_bytes()
     }
 
-    fn as_str_effortless(&self) -> Option<&str> {
+    fn as_str(&self) -> Option<&str> {
         Some(self.raw_message())
     }
 

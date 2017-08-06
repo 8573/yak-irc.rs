@@ -1,9 +1,8 @@
-use super::Client;
 use super::SessionId;
-use Message;
 
 #[derive(Debug)]
 pub struct MessageContext {
+    // TODO: Include a `ClientHandle` or similar.
     // TODO: Make these fields `pub_restricted` once I get 1.18.
     pub session_id: SessionId,
 }

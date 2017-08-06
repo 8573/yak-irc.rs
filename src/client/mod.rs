@@ -11,13 +11,10 @@ use connection::GetMioTcpStream;
 use connection::ReceiveMessage;
 use connection::SendMessage;
 use mio;
-#[cfg(feature = "pircolate")]
-use pircolate;
 use smallvec::SmallVec;
 use std;
 use std::borrow::Cow;
 use std::io;
-use std::io::Write;
 use std::sync::mpsc;
 use util;
 
@@ -171,8 +168,6 @@ where
                 }
             }
         }
-
-        Ok(())
     }
 }
 
@@ -235,7 +230,7 @@ fn process_writable<Msg, MsgHandler>(
 {
     let mut msgs_consumed = 0;
 
-    for (index, msg) in session.output_queue.iter().enumerate() {
+    for msg in session.output_queue.iter() {
         match session.inner.try_send(msg) {
             Ok(()) => msgs_consumed += 1,
             Err(connection::Error(connection::ErrorKind::Io(ref err), _))
@@ -326,7 +321,6 @@ where
     Msg: Message,
 {
     match action {
-        Action::None => {}
         Action::RawMsg {
             session_id,
             ref message,

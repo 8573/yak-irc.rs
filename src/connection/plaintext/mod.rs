@@ -10,7 +10,6 @@ use mio;
 use std::borrow::Cow;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::LineWriter;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::TcpStream;
@@ -38,7 +37,7 @@ impl PlaintextConnection {
             tcp_stream.peer_addr()?
         );
 
-        let tcp_stream = BufReader::new(tcp_stream);
+        let tcp_stream = BufReader::with_capacity(IRC_LINE_MAX_LEN, tcp_stream);
 
         Ok(PlaintextConnection { tcp_stream })
     }

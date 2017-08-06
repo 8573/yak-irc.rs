@@ -1,20 +1,13 @@
 use super::Connection;
 use super::GetMioTcpStream;
 use super::GetPeerAddr;
-use super::IRC_LINE_MAX_LEN;
 use super::PlaintextConnection;
 use super::ReceiveMessage;
 use super::Result;
 use super::SendMessage;
 use Message;
 use mio;
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::LineWriter;
-use std::io::Write;
 use std::net::SocketAddr;
-use std::net::TcpStream;
-use std::net::ToSocketAddrs;
 
 // TODO: add usage example.
 /// A generic IRC connection.

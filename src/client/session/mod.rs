@@ -10,7 +10,6 @@ use connection::SendMessage;
 use mio;
 #[cfg(feature = "pircolate")]
 use pircolate;
-use std::borrow::Cow;
 use std::fmt;
 use std::marker::PhantomData;
 use std::net::SocketAddr;
@@ -180,7 +179,7 @@ where
     RealnameField: Into<Option<CachedString>>,
     Self: fmt::Debug,
 {
-    pub fn start(mut self) -> Result<Session<Conn>> {
+    pub fn start(self) -> Result<Session<Conn>> {
         trace!(
             "[{}] Initiating session from {:?}",
             self.connection.peer_addr()?,

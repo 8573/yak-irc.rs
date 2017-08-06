@@ -18,12 +18,12 @@ use std::sync::mpsc;
 use util;
 use util::irc::pong_from_ping;
 
-pub mod msg_ctx;
-pub mod reaction;
 pub mod session;
 
 mod action;
 mod err;
+mod msg_ctx;
+mod reaction;
 mod tests;
 
 #[derive(Debug)]

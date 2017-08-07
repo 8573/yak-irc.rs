@@ -213,6 +213,35 @@ where
     }
 }
 
+pub trait TryIntoSession<Conn>
+where
+    Conn: Connection,
+{
+    fn try_into_session(self) -> Result<Session<Conn>>;
+}
+
+impl<Conn> TryIntoSession<Conn> for Session<Conn>
+where
+    Conn: Connection,
+{
+    fn try_into_session(self) -> Result<Session<Conn>> {
+        Ok(self)
+    }
+}
+
+impl<Conn, UsernameField, RealnameField> TryIntoSession<Conn>
+    for SessionBuilder<Conn, Conn, CachedString, UsernameField, RealnameField>
+where
+    Conn: Connection,
+    UsernameField: Into<Option<CachedString>>,
+    RealnameField: Into<Option<CachedString>>,
+    Self: fmt::Debug,
+{
+    fn try_into_session(self) -> Result<Session<Conn>> {
+        self.start()
+    }
+}
+
 impl<Conn> Session<Conn>
 where
     Conn: Connection,

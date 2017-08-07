@@ -3,6 +3,7 @@ pub use self::err::*;
 pub use self::msg_ctx::MessageContext;
 pub use self::reaction::Reaction;
 use self::session::Session;
+use self::session::TryIntoSession;
 use Message;
 use connection;
 use connection::Connection;
@@ -100,9 +101,10 @@ where
         self.handle_prototype.clone()
     }
 
-    pub fn add_session<Conn>(&mut self, session: Session<Conn>) -> Result<SessionId>
+    pub fn add_session<Conn, Sess>(&mut self, session: Sess) -> Result<SessionId>
     where
         Conn: Connection,
+        Sess: TryIntoSession<Conn>,
     {
         let index = self.sessions.len();
 
@@ -116,7 +118,7 @@ where
         let mio::Token(_) = EventContextId::Session(id).to_mio_token()?;
 
         self.sessions.push(SessionEntry {
-            inner: session.into_generic(),
+            inner: session.try_into_session()?.into_generic(),
             output_queue: SmallVec::new(),
             is_writable: false,
         });

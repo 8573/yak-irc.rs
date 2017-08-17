@@ -9,6 +9,6 @@ pub struct MessageContext {
 
 impl MessageContext {
     pub fn session_id(&self) -> SessionId {
-        self.session_id.clone()
+        self.session_id
     }
 }

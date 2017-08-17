@@ -11,6 +11,7 @@ error-chain = "0.10"
 lazy_static = "0.2"
 log = "0.3"
 mio = "0.6"
+parking_lot = "0.4"
 pircolate = {version = "0.2", optional = true}
 smallvec = "0.4"
 string_cache = "0.6"

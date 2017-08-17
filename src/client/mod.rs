@@ -1,4 +1,5 @@
 use self::action::Action;
+pub use self::config::ClientConfig;
 pub use self::err::*;
 pub use self::msg_ctx::MessageContext;
 pub use self::reaction::Reaction;
@@ -14,6 +15,7 @@ use uuid::Uuid;
 pub mod session;
 
 mod action;
+mod config;
 mod err;
 mod msg_ctx;
 mod reaction;

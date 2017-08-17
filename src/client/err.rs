@@ -1,3 +1,4 @@
+use super::SessionId;
 use connection;
 use message;
 #[cfg(feature = "pircolate")]
@@ -27,6 +28,13 @@ error_chain! {
         TooManySessions {
             description("an operation has failed because the client has too many sessions")
             display("An operation has failed because the client has too many sessions")
+        }
+        SessionIdFromWrongClient(session_id: SessionId, operation_name: Cow<'static, str>) {
+            description("a client operation taking a `SessionId` was given a `SessionId` from the \
+                         wrong client")
+            display("A client operation ({:?}) taking a `SessionId` was given a `SessionId` from \
+                     the wrong client: {:?}",
+                    operation_name, session_id)
         }
     }
 }

@@ -40,6 +40,11 @@ where
     Msg: Message,
 {
     pub fn try_send(&mut self, session_id: SessionId, message: Msg) -> Result<()> {
+        ensure!(
+            session_id.client_uuid == self.client_uuid,
+            ErrorKind::SessionIdFromWrongClient(session_id, "try_send".into())
+        );
+
         // Add the action to the client's MPSC queue.
         self.mpsc_sender
             .try_send(Action::RawMsg {

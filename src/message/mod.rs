@@ -53,3 +53,22 @@ impl Message for pircolate::Message {
         self.raw_command().as_bytes()
     }
 }
+
+#[cfg(test)]
+#[derive(Clone, Debug)]
+pub struct NullMsg;
+
+#[cfg(test)]
+impl Message for NullMsg {
+    fn try_from<'a>(_: Cow<'a, [u8]>) -> Result<Self> {
+        Ok(NullMsg)
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        b""
+    }
+
+    fn command_bytes(&self) -> &[u8] {
+        b""
+    }
+}

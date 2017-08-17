@@ -265,6 +265,7 @@ fn process_writable<Msg, MsgHandler>(
     util::smallvec::discard_front(&mut session.output_queue, msgs_consumed)
         .chain_err(|| {
             ErrorKind::InternalLogicError(
+                module_path!(),
                 "Tried to discard more messages from an outgoing message queue than it contained."
                     .into(),
             )

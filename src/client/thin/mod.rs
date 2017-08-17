@@ -71,6 +71,7 @@ where
         let (mpsc_sender, mpsc_receiver) = mpsc::sync_channel(MPSC_QUEUE_SIZE_LIMIT);
         let (mpsc_registration, readiness_setter) = mio::Registration::new2();
         let handle_prototype = ClientHandle {
+            client_uuid: uuid,
             mpsc_sender,
             readiness_setter,
         };

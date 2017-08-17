@@ -23,6 +23,7 @@ pub struct ClientHandle<Msg>
 where
     Msg: Message,
 {
+    client_uuid: Uuid,
     mpsc_sender: mpsc::SyncSender<Action<Msg>>,
     readiness_setter: mio::SetReadiness,
 }

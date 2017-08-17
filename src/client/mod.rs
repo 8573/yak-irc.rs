@@ -2,9 +2,11 @@ use self::action::Action;
 pub use self::err::*;
 pub use self::msg_ctx::MessageContext;
 pub use self::reaction::Reaction;
-pub use self::thick::Client;
+use self::session::TryIntoSession;
+pub use self::thick::ThickClient;
 pub use self::thin::ThinClient;
 use Message;
+use connection::Connection;
 use mio;
 use std::sync::mpsc;
 use uuid::Uuid;
@@ -17,6 +19,29 @@ mod msg_ctx;
 mod reaction;
 mod thick;
 mod thin;
+
+pub trait Client<Msg>
+where
+    Msg: Message,
+{
+    fn handle(&self) -> ClientHandle<Msg>;
+
+    fn add_session<Conn, Sess>(&mut self, session: Sess) -> Result<SessionId>
+    where
+        Conn: Connection,
+        Sess: TryIntoSession<Conn>;
+
+    fn run<MsgHandler>(self, msg_handler: MsgHandler) -> Result<()>
+    where
+        MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>;
+}
+
+trait ClientPrivate<Msg>
+where
+    Msg: Message,
+{
+    fn mk_session_id(&self, session_index: usize) -> Result<SessionId>;
+}
 
 #[derive(Clone, Debug)]
 pub struct ClientHandle<Msg>

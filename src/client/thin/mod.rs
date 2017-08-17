@@ -1,5 +1,7 @@
 use super::Action;
+use super::Client;
 use super::ClientHandle;
+use super::ClientPrivate;
 use super::ErrorKind;
 use super::MessageContext;
 use super::Reaction;
@@ -85,18 +87,6 @@ where
         }
     }
 
-    fn mk_session_id(&self, session_index: usize) -> Result<SessionId> {
-        let id = SessionId {
-            index: session_index,
-            client_uuid: self.uuid,
-        };
-
-        // Ensure that the session index can be converted to a Mio token.
-        let mio::Token(_) = EventContextId::Session(id).as_mio_token()?;
-
-        Ok(id)
-    }
-
     fn mk_event_ctx_id_from_mio_token(
         &self,
         mio::Token(token_number): mio::Token,
@@ -109,12 +99,34 @@ where
             }),
         }
     }
+}
 
-    pub fn handle(&self) -> ClientHandle<Msg> {
+impl<Msg> ClientPrivate<Msg> for ThinClient<Msg>
+where
+    Msg: Message,
+{
+    fn mk_session_id(&self, session_index: usize) -> Result<SessionId> {
+        let id = SessionId {
+            index: session_index,
+            client_uuid: self.uuid,
+        };
+
+        // Ensure that the session index can be converted to a Mio token.
+        let mio::Token(_) = EventContextId::Session(id).as_mio_token()?;
+
+        Ok(id)
+    }
+}
+
+impl<Msg> Client<Msg> for ThinClient<Msg>
+where
+    Msg: Message,
+{
+    fn handle(&self) -> ClientHandle<Msg> {
         self.handle_prototype.clone()
     }
 
-    pub fn add_session<Conn, Sess>(&mut self, session: Sess) -> Result<SessionId>
+    fn add_session<Conn, Sess>(&mut self, session: Sess) -> Result<SessionId>
     where
         Conn: Connection,
         Sess: TryIntoSession<Conn>,
@@ -136,7 +148,7 @@ where
         Ok(id)
     }
 
-    pub fn run<MsgHandler>(mut self, msg_handler: MsgHandler) -> Result<()>
+    fn run<MsgHandler>(mut self, msg_handler: MsgHandler) -> Result<()>
     where
         MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
     {

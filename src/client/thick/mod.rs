@@ -2,7 +2,7 @@ use super::ThinClient;
 use Message;
 
 #[derive(Debug)]
-pub struct Client<Msg>
+pub struct ThickClient<Msg>
 where
     Msg: Message,
 {

@@ -138,7 +138,7 @@ where
 
     pub fn run<MsgHandler>(mut self, msg_handler: MsgHandler) -> Result<()>
     where
-        MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
+        MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
     {
         let poll = match mio::Poll::new() {
             Ok(p) => p,
@@ -175,7 +175,13 @@ where
                     EventContextId::MpscQueue => process_mpsc_queue(&mut self),
                     EventContextId::Session(session_id) => {
                         let ref mut session = self.sessions[session_id.index];
-                        process_session_event(event.readiness(), session, session_id, &msg_handler)
+                        process_session_event(
+                            event.readiness(),
+                            session,
+                            session_id,
+                            &msg_handler,
+                            &self.handle_prototype,
+                        )
                     }
                 }
             }
@@ -188,20 +194,21 @@ fn process_session_event<Msg, MsgHandler>(
     session: &mut SessionEntry<Msg>,
     session_id: SessionId,
     msg_handler: &MsgHandler,
+    client_handle: &ClientHandle<Msg>,
 ) where
     Msg: Message,
-    MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
+    MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
 {
     if readiness.is_writable() {
         session.is_writable = true;
     }
 
     if session.is_writable {
-        process_writable(session, session_id, msg_handler);
+        process_writable(session, session_id, msg_handler, client_handle);
     }
 
     if readiness.is_readable() {
-        process_readable(session, session_id, msg_handler);
+        process_readable(session, session_id, msg_handler, client_handle);
     }
 }
 
@@ -209,11 +216,15 @@ fn process_readable<Msg, MsgHandler>(
     session: &mut SessionEntry<Msg>,
     session_id: SessionId,
     msg_handler: &MsgHandler,
+    client_handle: &ClientHandle<Msg>,
 ) where
     Msg: Message,
-    MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
+    MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
 {
-    let msg_ctx = MessageContext { session_id };
+    let msg_ctx = MessageContext {
+        client_handle: client_handle.clone(),
+        session_id,
+    };
 
     loop {
         let msg = match session.inner.recv::<Msg>() {
@@ -236,9 +247,10 @@ fn process_writable<Msg, MsgHandler>(
     session: &mut SessionEntry<Msg>,
     session_id: SessionId,
     msg_handler: &MsgHandler,
+    client_handle: &ClientHandle<Msg>,
 ) where
     Msg: Message,
-    MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
+    MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
 {
     let mut msgs_consumed = 0;
 
@@ -271,19 +283,22 @@ fn process_writable<Msg, MsgHandler>(
             )
         })
         .unwrap_or_else(|err| {
-            let msg_ctx = MessageContext { session_id };
+            let msg_ctx = MessageContext {
+                client_handle: client_handle.clone(),
+                session_id,
+            };
             process_reaction(session, session_id, msg_handler(&msg_ctx, Err(err)))
         });
 }
 
 fn handle_message<Msg, MsgHandler>(
     msg_handler: &MsgHandler,
-    msg_ctx: &MessageContext,
+    msg_ctx: &MessageContext<Msg>,
     msg: Result<Msg>,
 ) -> Reaction<Msg>
 where
     Msg: Message,
-    MsgHandler: Fn(&MessageContext, Result<Msg>) -> Reaction<Msg>,
+    MsgHandler: Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>,
 {
     let msg = match msg {
         Ok(msg) => {

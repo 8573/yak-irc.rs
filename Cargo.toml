@@ -14,6 +14,7 @@ mio = "0.6"
 pircolate = {version = "0.2", optional = true}
 smallvec = "0.4"
 string_cache = "0.6"
+uuid = {version = "0.5", features = ["v4"]}
 
 [dev-dependencies]
 quickcheck = "0.4"

@@ -22,6 +22,7 @@ use std::io;
 use std::sync::mpsc;
 use util;
 use util::irc::pong_from_ping;
+use uuid::Uuid;
 
 mod tests;
 
@@ -32,6 +33,7 @@ pub struct ThinClient<Msg>
 where
     Msg: Message,
 {
+    uuid: Uuid,
     sessions: SmallVec<[SessionEntry<Msg>; 3]>,
     mpsc_receiver: mpsc::Receiver<Action<Msg>>,
     mpsc_registration: mio::Registration,
@@ -64,6 +66,7 @@ where
     Msg: Message,
 {
     pub fn new() -> Self {
+        let uuid = Uuid::new_v4();
         let sessions = SmallVec::new();
         let (mpsc_sender, mpsc_receiver) = mpsc::sync_channel(MPSC_QUEUE_SIZE_LIMIT);
         let (mpsc_registration, readiness_setter) = mio::Registration::new2();
@@ -73,10 +76,36 @@ where
         };
 
         ThinClient {
+            uuid,
             sessions,
             mpsc_receiver,
             mpsc_registration,
             handle_prototype,
+        }
+    }
+
+    fn mk_session_id(&self, session_index: usize) -> Result<SessionId> {
+        let id = SessionId {
+            index: session_index,
+            client_uuid: self.uuid,
+        };
+
+        // Ensure that the session index can be converted to a Mio token.
+        let mio::Token(_) = EventContextId::Session(id).as_mio_token()?;
+
+        Ok(id)
+    }
+
+    fn mk_event_ctx_id_from_mio_token(
+        &self,
+        mio::Token(token_number): mio::Token,
+    ) -> EventContextId {
+        match token_number {
+            0 => EventContextId::MpscQueue,
+            n => EventContextId::Session(SessionId {
+                index: n - 1,
+                client_uuid: self.uuid,
+            }),
         }
     }
 
@@ -95,10 +124,7 @@ where
         // the system had somehow not run out of memory.
         ensure!(index < std::usize::MAX, ErrorKind::TooManySessions);
 
-        let id = SessionId { index };
-
-        // Ensure that the session index can be converted to a Mio token.
-        let mio::Token(_) = EventContextId::Session(id).as_mio_token()?;
+        let id = self.mk_session_id(index)?;
 
         self.sessions.push(SessionEntry {
             inner: session.try_into_session()?.into_generic(),
@@ -126,7 +152,7 @@ where
         for (index, session) in self.sessions.iter().enumerate() {
             poll.register(
                 session.inner.mio_tcp_stream(),
-                EventContextId::Session(SessionId { index })
+                EventContextId::Session(self.mk_session_id(index)?)
                     .as_mio_token()?,
                 mio::Ready::readable() | mio::Ready::writable(),
                 mio::PollOpt::edge(),
@@ -144,7 +170,7 @@ where
             let _event_qty = poll.poll(&mut events, None)?;
 
             for event in &events {
-                match event.token().into() {
+                match self.mk_event_ctx_id_from_mio_token(event.token()) {
                     EventContextId::MpscQueue => process_mpsc_queue(&mut self),
                     EventContextId::Session(session_id) => {
                         let ref mut session = self.sessions[session_id.index];
@@ -352,7 +378,10 @@ impl EventContextId {
     fn as_mio_token(&self) -> Result<mio::Token> {
         let token_number = match self {
             &EventContextId::MpscQueue => 0,
-            &EventContextId::Session(SessionId { index }) => {
+            &EventContextId::Session(SessionId {
+                                         index,
+                                         client_uuid: _,
+                                     }) => {
                 match index.checked_add(1) {
                     Some(std::usize::MAX) => {
                         // The conversion would result in `mio::Token(std::usize::MAX)`, which Mio
@@ -369,14 +398,5 @@ impl EventContextId {
         };
 
         Ok(mio::Token(token_number))
-    }
-}
-
-impl From<mio::Token> for EventContextId {
-    fn from(mio::Token(token_number): mio::Token) -> Self {
-        match token_number {
-            0 => EventContextId::MpscQueue,
-            n => EventContextId::Session(SessionId { index: n - 1 }),
-        }
     }
 }

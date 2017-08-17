@@ -7,6 +7,7 @@ pub use self::thin::ThinClient;
 use Message;
 use mio;
 use std::sync::mpsc;
+use uuid::Uuid;
 
 pub mod session;
 
@@ -30,6 +31,7 @@ where
 #[cfg_attr(test, derive(PartialEq))]
 pub struct SessionId {
     index: usize,
+    client_uuid: Uuid,
 }
 
 impl<Msg> ClientHandle<Msg>

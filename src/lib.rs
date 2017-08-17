@@ -1,6 +1,7 @@
 extern crate mio;
 extern crate smallvec;
 extern crate string_cache;
+extern crate uuid;
 
 #[macro_use]
 extern crate error_chain;

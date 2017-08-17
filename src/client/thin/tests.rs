@@ -21,7 +21,7 @@ quickcheck! {
     fn event_context_id_mio_token_conversion_roundtrip_1(token_number: usize) -> TestResult {
         let mio_tok_1 = mio::Token(token_number);
         let evt_ctx_id = EventContextId::from(mio_tok_1);
-        let mio_tok_2 = match evt_ctx_id.to_mio_token() {
+        let mio_tok_2 = match evt_ctx_id.as_mio_token() {
             Ok(t) => t,
             Err(_) => return TestResult::discard(),
         };
@@ -32,7 +32,7 @@ quickcheck! {
     fn event_context_id_mio_token_conversion_roundtrip_2(token_number: usize) -> TestResult {
         let mio_tok_1 = mio::Token(token_number);
         let evt_ctx_id_1 = EventContextId::from(mio_tok_1);
-        let mio_tok_2 = match evt_ctx_id_1.to_mio_token() {
+        let mio_tok_2 = match evt_ctx_id_1.as_mio_token() {
             Ok(t) => t,
             Err(_) => return TestResult::discard(),
         };

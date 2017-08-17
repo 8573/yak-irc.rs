@@ -99,7 +99,7 @@ where
         let id = SessionId { index };
 
         // Ensure that the session index can be converted to a Mio token.
-        let mio::Token(_) = EventContextId::Session(id).to_mio_token()?;
+        let mio::Token(_) = EventContextId::Session(id).as_mio_token()?;
 
         self.sessions.push(SessionEntry {
             inner: session.try_into_session()?.into_generic(),
@@ -128,7 +128,7 @@ where
             poll.register(
                 session.inner.mio_tcp_stream(),
                 EventContextId::Session(SessionId { index })
-                    .to_mio_token()?,
+                    .as_mio_token()?,
                 mio::Ready::readable() | mio::Ready::writable(),
                 mio::PollOpt::edge(),
             )?
@@ -136,7 +136,7 @@ where
 
         poll.register(
             &self.mpsc_registration,
-            EventContextId::MpscQueue.to_mio_token()?,
+            EventContextId::MpscQueue.as_mio_token()?,
             mio::Ready::readable(),
             mio::PollOpt::edge(),
         )?;
@@ -350,7 +350,7 @@ where
 }
 
 impl EventContextId {
-    fn to_mio_token(&self) -> Result<mio::Token> {
+    fn as_mio_token(&self) -> Result<mio::Token> {
         let token_number = match self {
             &EventContextId::MpscQueue => 0,
             &EventContextId::Session(SessionId { index }) => {

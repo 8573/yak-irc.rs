@@ -15,6 +15,7 @@ use std::fmt;
 use std::io::BufReader;
 use std::net::SocketAddr;
 use std::net::TcpStream;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
 pub struct TlsConnection {
@@ -23,11 +24,27 @@ pub struct TlsConnection {
 }
 
 impl TlsConnection {
-    pub fn new(config: &Arc<rustls::ClientConfig>, hostname: &str) -> Result<Self> {
-        let tcp_stream = TcpStream::connect(hostname)?;
+    pub fn from_addr<A>(
+        server_addrs: A,
+        config: &Arc<rustls::ClientConfig>,
+        hostname: &str,
+    ) -> Result<Self>
+    where
+        A: ToSocketAddrs,
+    {
+        Self::from_tcp_stream(TcpStream::connect(server_addrs)?, config, hostname)
+    }
+
+    pub fn from_tcp_stream(
+        tcp_stream: TcpStream,
+        config: &Arc<rustls::ClientConfig>,
+        hostname: &str,
+    ) -> Result<Self> {
         let tcp_stream = mio::net::TcpStream::from_stream(tcp_stream)?;
         let tls_session = rustls::ClientSession::new(config, hostname);
         let tls_session = BufReader::with_capacity(IRC_LINE_MAX_LEN, tls_session);
+
+        trace!("[{}] Established TLS connection.", tcp_stream.peer_addr()?);
 
         Ok(TlsConnection {
             tcp_stream,

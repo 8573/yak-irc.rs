@@ -1,4 +1,5 @@
 use super::Connection;
+use super::ErrorKind;
 use super::GetMioTcpStream;
 use super::GetPeerAddr;
 use super::IRC_LINE_MAX_LEN;
@@ -10,6 +11,7 @@ use mio;
 use std::borrow::Cow;
 use std::io::BufRead;
 use std::io::BufReader;
+use std::io::BufWriter;
 use std::io::Write;
 use std::net::SocketAddr;
 use std::net::TcpStream;
@@ -18,7 +20,8 @@ use std::net::ToSocketAddrs;
 /// TODO: Use pub_restricted once I get 1.18.
 #[derive(Debug)]
 pub struct PlaintextConnection {
-    tcp_stream: BufReader<mio::net::TcpStream>,
+    tcp_reader: BufReader<mio::net::TcpStream>,
+    tcp_writer: BufWriter<mio::net::TcpStream>,
 }
 
 impl PlaintextConnection {
@@ -29,17 +32,21 @@ impl PlaintextConnection {
         Self::from_tcp_stream(TcpStream::connect(server_addrs)?)
     }
 
-    pub fn from_tcp_stream(tcp_stream: TcpStream) -> Result<Self> {
-        let tcp_stream = mio::net::TcpStream::from_stream(tcp_stream)?;
+    pub fn from_tcp_stream(tcp_reader: TcpStream) -> Result<Self> {
+        let tcp_reader = mio::net::TcpStream::from_stream(tcp_reader)?;
 
         trace!(
             "[{}] Established plaintext connection.",
-            tcp_stream.peer_addr()?
+            tcp_reader.peer_addr()?
         );
 
-        let tcp_stream = BufReader::with_capacity(IRC_LINE_MAX_LEN, tcp_stream);
+        let tcp_writer = BufWriter::with_capacity(IRC_LINE_MAX_LEN, tcp_reader.try_clone()?);
+        let tcp_reader = BufReader::with_capacity(IRC_LINE_MAX_LEN, tcp_reader);
 
-        Ok(PlaintextConnection { tcp_stream })
+        Ok(PlaintextConnection {
+            tcp_reader,
+            tcp_writer,
+        })
     }
 }
 
@@ -50,20 +57,22 @@ impl SendMessage for PlaintextConnection {
     where
         Msg: Message,
     {
-        // TODO: Use `as_bytes`, not `to_str`.
-        let msg = msg.to_str()?;
+        let msg_bytes = msg.as_bytes();
 
-        // TODO: Using `write!`/`write_fmt` here incurs at least two system calls, one to send the
-        // `msg` and one to send the `"\r\n"`. `format!`-ing the `msg` and CR-LF into a `String`
-        // first, incurring allocation instead, may be preferable?
-        write!(self.tcp_stream.get_mut(), "{}\r\n", msg)?;
+        ensure!(
+            msg_bytes.len() <= IRC_LINE_MAX_LEN,
+            ErrorKind::MessageTooLong(msg_bytes.to_owned())
+        );
 
-        match self.tcp_stream.get_mut().flush() {
-            Ok(()) => debug!("Sent message: {:?}", msg),
+        self.tcp_writer.write_all(msg_bytes)?;
+        self.tcp_writer.write_all(b"\r\n")?;
+
+        match self.tcp_writer.flush() {
+            Ok(()) => debug!("Sent message: {:?}", msg.to_str_lossy()),
             Err(err) => {
                 error!(
                     "Wrote but failed to flush message: {:?} (error: {})",
-                    msg,
+                    msg.to_str_lossy(),
                     err
                 );
                 bail!(err)
@@ -81,7 +90,7 @@ impl ReceiveMessage for PlaintextConnection {
     {
         let mut line = Vec::new();
 
-        let bytes_read = self.tcp_stream.read_until(b'\n', &mut line)?;
+        let bytes_read = self.tcp_reader.read_until(b'\n', &mut line)?;
 
         if bytes_read == 0 {
             return Ok(None);
@@ -101,12 +110,12 @@ impl ReceiveMessage for PlaintextConnection {
 
 impl GetPeerAddr for PlaintextConnection {
     fn peer_addr(&self) -> Result<SocketAddr> {
-        self.tcp_stream.get_ref().peer_addr().map_err(Into::into)
+        self.tcp_reader.get_ref().peer_addr().map_err(Into::into)
     }
 }
 
 impl GetMioTcpStream for PlaintextConnection {
     fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
-        self.tcp_stream.get_ref()
+        self.tcp_reader.get_ref()
     }
 }

@@ -5,6 +5,7 @@ use super::PlaintextConnection;
 use super::ReceiveMessage;
 use super::Result;
 use super::SendMessage;
+use super::TlsConnection;
 use Message;
 use mio;
 use std::net::SocketAddr;
@@ -25,6 +26,7 @@ pub struct GenericConnection {
 
 #[derive(Debug)]
 enum GenericConnectionInner {
+    Tls(TlsConnection),
     Plaintext(PlaintextConnection),
 }
 
@@ -43,6 +45,13 @@ macro_rules! impl_from {
 impl_from!(
     GenericConnection,
     GenericConnectionInner,
+    TlsConnection,
+    Tls
+);
+
+impl_from!(
+    GenericConnection,
+    GenericConnectionInner,
     PlaintextConnection,
     Plaintext
 );
@@ -55,6 +64,7 @@ impl SendMessage for GenericConnection {
         Msg: Message,
     {
         match self.inner {
+            GenericConnectionInner::Tls(ref mut conn) => conn.try_send(msg),
             GenericConnectionInner::Plaintext(ref mut conn) => conn.try_send(msg),
         }
     }
@@ -66,6 +76,7 @@ impl ReceiveMessage for GenericConnection {
         Msg: Message,
     {
         match self.inner {
+            GenericConnectionInner::Tls(ref mut conn) => conn.recv(),
             GenericConnectionInner::Plaintext(ref mut conn) => conn.recv(),
         }
     }
@@ -74,6 +85,7 @@ impl ReceiveMessage for GenericConnection {
 impl GetPeerAddr for GenericConnection {
     fn peer_addr(&self) -> Result<SocketAddr> {
         match self.inner {
+            GenericConnectionInner::Tls(ref conn) => conn.peer_addr(),
             GenericConnectionInner::Plaintext(ref conn) => conn.peer_addr(),
         }
     }
@@ -82,6 +94,7 @@ impl GetPeerAddr for GenericConnection {
 impl GetMioTcpStream for GenericConnection {
     fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
         match self.inner {
+            GenericConnectionInner::Tls(ref conn) => conn.mio_tcp_stream(),
             GenericConnectionInner::Plaintext(ref conn) => conn.mio_tcp_stream(),
         }
     }

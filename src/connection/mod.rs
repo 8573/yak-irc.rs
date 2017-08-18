@@ -1,6 +1,7 @@
 pub use self::err::*;
 pub use self::generic::GenericConnection;
 pub use self::plaintext::PlaintextConnection;
+pub use self::tls::TlsConnection;
 use Message;
 use mio;
 use std::borrow::Cow;
@@ -12,6 +13,7 @@ use std::net::SocketAddr;
 mod err;
 mod generic;
 mod plaintext;
+mod tls;
 
 const IRC_LINE_MAX_LEN: usize = 1024;
 

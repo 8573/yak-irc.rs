@@ -1,5 +1,6 @@
 extern crate mio;
 extern crate parking_lot;
+extern crate rustls;
 extern crate smallvec;
 extern crate string_cache;
 extern crate uuid;

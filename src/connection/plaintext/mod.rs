@@ -1,18 +1,16 @@
 use super::Connection;
-use super::ErrorKind;
 use super::GetMioTcpStream;
 use super::GetPeerAddr;
 use super::IRC_LINE_MAX_LEN;
 use super::ReceiveMessage;
 use super::Result;
 use super::SendMessage;
+use super::recv_common;
+use super::try_send_common;
 use Message;
 use mio;
-use std::borrow::Cow;
-use std::io::BufRead;
 use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::Write;
 use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
@@ -57,29 +55,7 @@ impl SendMessage for PlaintextConnection {
     where
         Msg: Message,
     {
-        let msg_bytes = msg.as_bytes();
-
-        ensure!(
-            msg_bytes.len() <= IRC_LINE_MAX_LEN,
-            ErrorKind::MessageTooLong(msg_bytes.to_owned())
-        );
-
-        self.tcp_writer.write_all(msg_bytes)?;
-        self.tcp_writer.write_all(b"\r\n")?;
-
-        match self.tcp_writer.flush() {
-            Ok(()) => debug!("Sent message: {:?}", msg.to_str_lossy()),
-            Err(err) => {
-                error!(
-                    "Wrote but failed to flush message: {:?} (error: {})",
-                    msg.to_str_lossy(),
-                    err
-                );
-                bail!(err)
-            }
-        }
-
-        Ok(())
+        try_send_common(&mut self.tcp_writer, msg)
     }
 }
 
@@ -88,23 +64,7 @@ impl ReceiveMessage for PlaintextConnection {
     where
         Msg: Message,
     {
-        let mut line = Vec::new();
-
-        let bytes_read = self.tcp_reader.read_until(b'\n', &mut line)?;
-
-        if bytes_read == 0 {
-            return Ok(None);
-        }
-
-        while line.ends_with(b"\n") || line.ends_with(b"\r") {
-            let _popped_char = line.pop();
-        }
-
-        debug!("Received message: {:?}", String::from_utf8_lossy(&line));
-
-        Msg::try_from(Cow::Owned(line)).map(Some).map_err(
-            Into::into,
-        )
+        recv_common(&mut self.tcp_reader)
     }
 }
 

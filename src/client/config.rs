@@ -1,15 +1,12 @@
-use super::MessageContext;
-use super::Reaction;
-use super::Result;
 use Message;
 use std::fmt;
-use util;
 
 pub struct ClientConfig<Msg>
 where
     Msg: Message,
 {
-    pub msg_handler: Box<Fn(&MessageContext<Msg>, Result<Msg>) -> Reaction<Msg>>,
+    // TODO: Delete this field once real fields are added.
+    _msg: Msg,
 }
 
 impl<Msg> fmt::Debug for ClientConfig<Msg>
@@ -17,10 +14,10 @@ where
     Msg: Message,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let &ClientConfig { msg_handler: _ } = self;
+        let &ClientConfig { _msg: _ } = self;
 
         f.debug_struct(stringify!(ClientConfig))
-            .field(stringify!(msg_handler), &util::fmt::debug_repr::Fn)
+            //.field(stringify!(... name ...), ... value ...)
             .finish()
     }
 }

@@ -13,8 +13,8 @@ use super::session::TryIntoSession;
 use Message;
 use connection;
 use connection::Connection;
+use connection::ConnectionPrivate;
 use connection::GenericConnection;
-use connection::GetMioTcpStream;
 use connection::ReceiveMessage;
 use connection::SendMessage;
 use mio;
@@ -43,7 +43,7 @@ where
 }
 
 #[derive(Debug)]
-struct SessionEntry<Msg>
+pub(crate) struct SessionEntry<Msg>
 where
     Msg: Message,
 {
@@ -126,9 +126,8 @@ where
         self.handle_prototype.clone()
     }
 
-    fn add_session<Conn, Sess>(&mut self, session: Sess) -> Result<SessionId>
+    fn add_session<Sess>(&mut self, session: Sess) -> Result<SessionId>
     where
-        Conn: Connection,
         Sess: TryIntoSession<Conn>,
     {
         let index = self.sessions.len();
@@ -140,7 +139,7 @@ where
         let id = self.mk_session_id(index)?;
 
         self.sessions.push(SessionEntry {
-            inner: session.try_into_session()?.into_generic(),
+            inner: session.try_into_session()?,
             output_queue: SmallVec::new(),
             is_writable: false,
         });
@@ -162,13 +161,13 @@ where
 
         let mut events = mio::Events::with_capacity(512);
 
-        for (index, session) in self.sessions.iter().enumerate() {
+        for (index, &SessionEntry { ref inner, .. }) in self.sessions.iter().enumerate() {
             poll.register(
-                session.inner.mio_tcp_stream(),
+                inner.mio_registerable(),
                 EventContextId::Session(self.mk_session_id(index)?)
                     .as_mio_token()?,
-                mio::Ready::readable() | mio::Ready::writable(),
-                mio::PollOpt::edge(),
+                inner.mio_registration_interest(),
+                inner.mio_poll_opts(),
             )?
         }
 
@@ -186,8 +185,8 @@ where
                 match self.mk_event_ctx_id_from_mio_token(event.token()) {
                     EventContextId::MpscQueue => process_mpsc_queue(&mut self),
                     EventContextId::Session(session_id) => {
-                        let ref mut session = self.sessions[session_id.index];
-                        process_session_event(
+                        let &SessionEntry { ref mut inner, ref mut output_queue, ref mut is_writable } = self.sessions[session_id.index];
+                        session.inner.process_mio_event(
                             event.readiness(),
                             session,
                             session_id,
@@ -203,8 +202,8 @@ where
 
 fn process_session_event<Msg, MsgHandler>(
     readiness: mio::Ready,
-    session: &mut SessionEntry<Msg>,
     session_id: SessionId,
+    output
     msg_handler: &MsgHandler,
     client_handle: &ClientHandle<Msg>,
 ) where

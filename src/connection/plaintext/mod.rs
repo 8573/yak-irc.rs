@@ -1,5 +1,5 @@
 use super::Connection;
-use super::GetMioTcpStream;
+use super::ConnectionPrivate;
 use super::GetPeerAddr;
 use super::IRC_LINE_MAX_LEN;
 use super::ReceiveMessage;
@@ -73,8 +73,16 @@ impl GetPeerAddr for PlaintextConnection {
     }
 }
 
-impl GetMioTcpStream for PlaintextConnection {
-    fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
+impl ConnectionPrivate for PlaintextConnection {
+    fn mio_registerable(&self) -> &mio::event::Evented {
         self.tcp_reader.get_ref()
+    }
+
+    fn mio_registration_interest(&self) -> mio::Ready {
+        mio::Ready::readable() | mio::Ready::writable()
+    }
+
+    fn mio_poll_opts(&self) -> mio::PollOpt {
+        mio::PollOpt::edge()
     }
 }

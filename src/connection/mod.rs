@@ -1,19 +1,20 @@
 pub use self::err::*;
 pub use self::generic::GenericConnection;
 pub use self::plaintext::PlaintextConnection;
-pub use self::tls::TlsConnection;
+//pub use self::tls::TlsConnection;
 use Message;
 use mio;
 use std::borrow::Cow;
 use std::fmt::Debug;
 use std::io::BufRead;
 use std::io::Write;
+use client;
 use std::net::SocketAddr;
 
 mod err;
 mod generic;
 mod plaintext;
-mod tls;
+//mod tls;
 
 const IRC_LINE_MAX_LEN: usize = 1024;
 
@@ -40,10 +41,15 @@ pub trait GetPeerAddr {
     fn peer_addr(&self) -> Result<SocketAddr>;
 }
 
-pub(crate) trait GetMioTcpStream {
-    /// Returns a reference to `self`'s underlying `mio::net::TcpStream`, which is intended solely
-    /// for registering the `TcpStream` with a `mio::Poll`.
-    fn mio_tcp_stream(&self) -> &mio::net::TcpStream;
+pub(crate) trait ConnectionPrivate {
+    fn mio_registerable(&self) -> &mio::event::Evented;
+
+    fn mio_registration_interest(&self) -> mio::Ready;
+
+    fn mio_poll_opts(&self) -> mio::PollOpt;
+
+    fn process_mio_event<Msg>(&mut self, mio::Ready, client::thin::SessionEntry<Msg>) -> Result<()>
+        where Msg:Message;
 }
 
 fn recv_common<R, Msg>(reader: &mut R) -> Result<Option<Msg>>

@@ -1,5 +1,5 @@
 use super::Connection;
-use super::GetMioTcpStream;
+use super::ConnectionPrivate;
 use super::GetPeerAddr;
 use super::PlaintextConnection;
 use super::ReceiveMessage;
@@ -70,10 +70,24 @@ macro_rules! impl_generic {
             }
         }
 
-        impl GetMioTcpStream for GenericConnection {
-            fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
+        impl ConnectionPrivate for GenericConnection {
+            fn mio_registerable(&self) -> &mio::event::Evented {
                 match self.inner {
-                    $(GenericConnectionInner::$variant(ref conn) => conn.mio_tcp_stream(),)*
+                    $(GenericConnectionInner::$variant(ref conn) => conn.mio_registerable(),)*
+                }
+            }
+
+            fn mio_registration_interest(&self) -> mio::Ready {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref conn) => {
+                        conn.mio_registration_interest()
+                    })*
+                }
+            }
+
+            fn mio_poll_opts(&self) -> mio::PollOpt {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref conn) => conn.mio_poll_opts(),)*
                 }
             }
         }

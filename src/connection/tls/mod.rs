@@ -1,5 +1,5 @@
 use super::Connection;
-use super::GetMioTcpStream;
+use super::ConnectionPrivate;
 use super::GetPeerAddr;
 use super::IRC_LINE_MAX_LEN;
 use super::ReceiveMessage;
@@ -17,10 +17,11 @@ use std::net::TcpStream;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
+mod inner;
+
 #[derive(Debug)]
 pub struct TlsConnection {
-    tcp_stream: mio::net::TcpStream,
-    tls_session: BufReader<rustls::ClientSession>,
+    inner: BufReader<inner::TlsClient>,
 }
 
 impl TlsConnection {
@@ -41,45 +42,13 @@ impl TlsConnection {
         hostname: &str,
     ) -> Result<Self> {
         let tcp_stream = mio::net::TcpStream::from_stream(tcp_stream)?;
-        let tls_session = rustls::ClientSession::new(config, hostname);
-        let tls_session = BufReader::with_capacity(IRC_LINE_MAX_LEN, tls_session);
+        let tls_client = inner::TlsClient::new(tcp_stream, hostname, config);
 
         trace!("[{}] Established TLS connection.", tcp_stream.peer_addr()?);
 
-        Ok(TlsConnection {
-            tcp_stream,
-            tls_session,
-        })
-    }
+        let inner = BufReader::with_capacity(IRC_LINE_MAX_LEN, tls_client);
 
-    fn complete_io(&mut self) -> Result<()> {
-        let (_bytes_read, _bytes_written) =
-            self.tls_session.get_mut().complete_io(&mut self.tcp_stream)?;
-
-        Ok(())
-    }
-
-    /// An internal method.
-    ///
-    /// This method is derived from, and the trait implementations that use it are based on, the
-    /// implementation of `rustls::Session` in version 0.10.0 of `rustls`, which comes with the
-    /// following notices:
-    ///
-    /// > Copyright (c) 2016, Joseph Birr-Pixton <jpixton@gmail.com>
-    /// >
-    /// > Permission to use, copy, modify, and/or distribute this software for
-    /// > any purpose with or without fee is hereby granted, provided that the
-    /// > above copyright notice and this permission notice appear in all copies.
-    fn complete_prior_io(&mut self) -> Result<()> {
-        if self.tls_session.get_ref().is_handshaking() {
-            self.complete_io()?;
-        }
-
-        if self.tls_session.get_ref().wants_write() {
-            self.complete_io()?;
-        }
-
-        Ok(())
+        Ok(TlsConnection { inner })
     }
 }
 
@@ -123,8 +92,16 @@ impl GetPeerAddr for TlsConnection {
     }
 }
 
-impl GetMioTcpStream for TlsConnection {
-    fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
+impl ConnectionPrivate for TlsConnection {
+    fn mio_registerable(&self) -> &mio::event::Evented {
         &self.tcp_stream
+    }
+
+    fn mio_registration_interest(&self) -> mio::Ready {
+        self.inner.ready_interest()
+    }
+
+    fn mio_poll_opts(&self) -> mio::PollOpt {
+        mio::PollOpt::level() | mio::PollOpt::oneshot()
     }
 }

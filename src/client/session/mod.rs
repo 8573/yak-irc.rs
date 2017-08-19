@@ -2,8 +2,8 @@ use Message;
 use client::Result;
 use connection;
 use connection::Connection;
+use connection::ConnectionPrivate;
 use connection::GenericConnection;
-use connection::GetMioTcpStream;
 use connection::GetPeerAddr;
 use connection::ReceiveMessage;
 use connection::SendMessage;
@@ -11,7 +11,6 @@ use mio;
 #[cfg(feature = "pircolate")]
 use pircolate;
 use std::fmt;
-use std::marker::PhantomData;
 use std::net::SocketAddr;
 use string_cache::DefaultAtom as CachedString;
 
@@ -24,11 +23,8 @@ lazy_static! {
 }
 
 #[derive(Debug)]
-pub struct Session<Conn>
-where
-    Conn: Connection,
-{
-    connection: Conn,
+pub struct Session {
+    connection: GenericConnection,
     nickname: CachedString,
     username: CachedString,
     realname: CachedString,
@@ -36,14 +32,12 @@ where
 
 #[derive(Copy, Clone, Debug)]
 pub struct SessionBuilder<
-    Conn,
-    ConnField = Option<Conn>,
+    ConnField = Option<GenericConnection>,
     NicknameField = Option<CachedString>,
     UsernameField = Option<CachedString>,
     RealnameField = Option<CachedString>,
 > where
-    Conn: Connection,
-    ConnField: Into<Option<Conn>>,
+    ConnField: Into<Option<GenericConnection>>,
     NicknameField: Into<Option<CachedString>>,
     UsernameField: Into<Option<CachedString>>,
     RealnameField: Into<Option<CachedString>>,
@@ -52,43 +46,42 @@ pub struct SessionBuilder<
     nickname: NicknameField,
     username: UsernameField,
     realname: RealnameField,
-    _result_phantom: PhantomData<Session<Conn>>,
 }
 
-impl<Conn, ConnField, NicknameField, UsernameField, RealnameField>
-    SessionBuilder<Conn, ConnField, NicknameField, UsernameField, RealnameField>
+impl<ConnField, NicknameField, UsernameField, RealnameField>
+    SessionBuilder<ConnField, NicknameField, UsernameField, RealnameField>
 where
-    Conn: Connection,
-    ConnField: Into<Option<Conn>>,
+    ConnField: Into<Option<GenericConnection>>,
     NicknameField: Into<Option<CachedString>>,
     UsernameField: Into<Option<CachedString>>,
     RealnameField: Into<Option<CachedString>>,
 {
-    pub fn connection(
+    pub fn connection<C>(
         self,
-        value: Conn,
-    ) -> SessionBuilder<Conn, Conn, NicknameField, UsernameField, RealnameField> {
+        value: C,
+    ) -> SessionBuilder<GenericConnection, NicknameField, UsernameField, RealnameField>
+    where
+        C: Into<GenericConnection>,
+    {
         let SessionBuilder {
             connection: _,
             nickname,
             username,
             realname,
-            _result_phantom,
         } = self;
 
         SessionBuilder {
-            connection: value,
+            connection: value.into(),
             nickname,
             username,
             realname,
-            _result_phantom,
         }
     }
 
     pub fn nickname<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, CachedString, UsernameField, RealnameField>
+    ) -> SessionBuilder<ConnField, CachedString, UsernameField, RealnameField>
     where
         S: Into<CachedString>,
     {
@@ -97,7 +90,6 @@ where
             nickname: _,
             username,
             realname,
-            _result_phantom,
         } = self;
 
         SessionBuilder {
@@ -105,14 +97,13 @@ where
             nickname: value.into(),
             username,
             realname,
-            _result_phantom,
         }
     }
 
     pub fn username<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, NicknameField, CachedString, RealnameField>
+    ) -> SessionBuilder<ConnField, NicknameField, CachedString, RealnameField>
     where
         S: Into<CachedString>,
     {
@@ -121,7 +112,6 @@ where
             nickname,
             username: _,
             realname,
-            _result_phantom,
         } = self;
 
         SessionBuilder {
@@ -129,14 +119,13 @@ where
             nickname,
             username: value.into(),
             realname,
-            _result_phantom,
         }
     }
 
     pub fn realname<S>(
         self,
         value: S,
-    ) -> SessionBuilder<Conn, ConnField, NicknameField, UsernameField, CachedString>
+    ) -> SessionBuilder<ConnField, NicknameField, UsernameField, CachedString>
     where
         S: Into<CachedString>,
     {
@@ -145,7 +134,6 @@ where
             nickname,
             username,
             realname: _,
-            _result_phantom,
         } = self;
 
         SessionBuilder {
@@ -153,33 +141,27 @@ where
             nickname,
             username,
             realname: value.into(),
-            _result_phantom,
         }
     }
 }
 
-pub fn build<Conn>() -> SessionBuilder<Conn>
-where
-    Conn: Connection,
-{
+pub fn build() -> SessionBuilder {
     SessionBuilder {
         connection: None,
         nickname: None,
         username: None,
         realname: None,
-        _result_phantom: Default::default(),
     }
 }
 
-impl<Conn, UsernameField, RealnameField>
-    SessionBuilder<Conn, Conn, CachedString, UsernameField, RealnameField>
+impl<UsernameField, RealnameField>
+    SessionBuilder<GenericConnection, CachedString, UsernameField, RealnameField>
 where
-    Conn: Connection,
     UsernameField: Into<Option<CachedString>>,
     RealnameField: Into<Option<CachedString>>,
     Self: fmt::Debug,
 {
-    pub fn start(self) -> Result<Session<Conn>> {
+    pub fn start(self) -> Result<Session> {
         trace!(
             "[{}] Initiating session from {:?}",
             self.connection.peer_addr()?,
@@ -191,7 +173,6 @@ where
             nickname,
             username,
             realname,
-            _result_phantom: _,
         } = self;
 
         let username = username.into().unwrap_or(nickname.clone());
@@ -213,60 +194,29 @@ where
     }
 }
 
-pub trait TryIntoSession<Conn>
-where
-    Conn: Connection,
-{
-    fn try_into_session(self) -> Result<Session<Conn>>;
+pub trait TryIntoSession {
+    fn try_into_session(self) -> Result<Session>;
 }
 
-impl<Conn> TryIntoSession<Conn> for Session<Conn>
-where
-    Conn: Connection,
-{
-    fn try_into_session(self) -> Result<Session<Conn>> {
+impl TryIntoSession for Session {
+    fn try_into_session(self) -> Result<Session> {
         Ok(self)
     }
 }
 
-impl<Conn, UsernameField, RealnameField> TryIntoSession<Conn>
-    for SessionBuilder<Conn, Conn, CachedString, UsernameField, RealnameField>
+impl<UsernameField, RealnameField> TryIntoSession
+    for SessionBuilder<GenericConnection, CachedString, UsernameField, RealnameField>
 where
-    Conn: Connection,
     UsernameField: Into<Option<CachedString>>,
     RealnameField: Into<Option<CachedString>>,
     Self: fmt::Debug,
 {
-    fn try_into_session(self) -> Result<Session<Conn>> {
+    fn try_into_session(self) -> Result<Session> {
         self.start()
     }
 }
 
-impl<Conn> Session<Conn>
-where
-    Conn: Connection,
-{
-    pub fn into_generic(self) -> Session<GenericConnection> {
-        let Session {
-            connection,
-            nickname,
-            username,
-            realname,
-        } = self;
-
-        Session {
-            connection: connection.into(),
-            nickname,
-            username,
-            realname,
-        }
-    }
-}
-
-impl<Conn> ReceiveMessage for Session<Conn>
-where
-    Conn: Connection,
-{
+impl ReceiveMessage for Session {
     fn recv<Msg>(&mut self) -> connection::Result<Option<Msg>>
     where
         Msg: Message,
@@ -275,10 +225,7 @@ where
     }
 }
 
-impl<Conn> SendMessage for Session<Conn>
-where
-    Conn: Connection,
-{
+impl SendMessage for Session {
     fn try_send<Msg>(&mut self, msg: &Msg) -> connection::Result<()>
     where
         Msg: Message,
@@ -287,20 +234,22 @@ where
     }
 }
 
-impl<Conn> GetPeerAddr for Session<Conn>
-where
-    Conn: Connection,
-{
+impl GetPeerAddr for Session {
     fn peer_addr(&self) -> connection::Result<SocketAddr> {
         self.connection.peer_addr()
     }
 }
 
-impl<Conn> GetMioTcpStream for Session<Conn>
-where
-    Conn: Connection + GetMioTcpStream,
-{
-    fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
-        self.connection.mio_tcp_stream()
+impl ConnectionPrivate for Session {
+    fn mio_registerable(&self) -> &mio::event::Evented {
+        self.connection.mio_registerable()
+    }
+
+    fn mio_registration_interest(&self) -> mio::Ready {
+        self.connection.mio_registration_interest()
+    }
+
+    fn mio_poll_opts(&self) -> mio::PollOpt {
+        self.connection.mio_poll_opts()
     }
 }

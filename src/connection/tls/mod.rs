@@ -58,6 +58,29 @@ impl TlsConnection {
 
         Ok(())
     }
+
+    /// An internal method.
+    ///
+    /// This method is derived from, and the trait implementations that use it are based on, the
+    /// implementation of `rustls::Session` in version 0.10.0 of `rustls`, which comes with the
+    /// following notices:
+    ///
+    /// > Copyright (c) 2016, Joseph Birr-Pixton <jpixton@gmail.com>
+    /// >
+    /// > Permission to use, copy, modify, and/or distribute this software for
+    /// > any purpose with or without fee is hereby granted, provided that the
+    /// > above copyright notice and this permission notice appear in all copies.
+    fn complete_prior_io(&mut self) -> Result<()> {
+        if self.tls_session.get_ref().is_handshaking() {
+            self.complete_io()?;
+        }
+
+        if self.tls_session.get_ref().wants_write() {
+            self.complete_io()?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Connection for TlsConnection {}
@@ -67,8 +90,13 @@ impl ReceiveMessage for TlsConnection {
     where
         Msg: Message,
     {
+        self.complete_prior_io()?;
+
+        if self.tls_session.get_ref().wants_read() {
+            self.complete_io()?;
+        }
+
         let msg = recv_common(&mut self.tls_session)?;
-        self.complete_io()?;
 
         Ok(msg)
     }
@@ -79,7 +107,10 @@ impl SendMessage for TlsConnection {
     where
         Msg: Message,
     {
+        self.complete_prior_io()?;
+
         try_send_common(self.tls_session.get_mut(), msg)?;
+
         self.complete_io()?;
 
         Ok(())

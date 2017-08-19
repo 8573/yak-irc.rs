@@ -11,13 +11,13 @@ use Message;
 use mio;
 use rustls;
 use rustls::Session as RustlsSession;
-use std::fmt;
 use std::io::BufReader;
 use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 
+#[derive(Debug)]
 pub struct TlsConnection {
     tcp_stream: mio::net::TcpStream,
     tls_session: BufReader<rustls::ClientSession>,
@@ -126,13 +126,5 @@ impl GetPeerAddr for TlsConnection {
 impl GetMioTcpStream for TlsConnection {
     fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
         &self.tcp_stream
-    }
-}
-
-// TODO: Once I get rustc 1.18, update to rustls 0.10, derive `Debug` for `TlsConnection`, and
-// delete this stop-gap `impl`.
-impl fmt::Debug for TlsConnection {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_struct(stringify!(TlsConnection)).finish()
     }
 }

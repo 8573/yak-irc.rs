@@ -7,9 +7,8 @@ pub struct MessageContext<Msg>
 where
     Msg: Message,
 {
-    // TODO: Make these fields `pub_restricted` once I get 1.18.
-    pub client_handle: ClientHandle<Msg>,
-    pub session_id: SessionId,
+    pub(crate) client_handle: ClientHandle<Msg>,
+    pub(crate) session_id: SessionId,
 }
 
 impl<Msg> MessageContext<Msg>

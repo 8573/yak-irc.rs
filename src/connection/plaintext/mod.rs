@@ -15,7 +15,6 @@ use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::net::ToSocketAddrs;
 
-/// TODO: Use pub_restricted once I get 1.18.
 #[derive(Debug)]
 pub struct PlaintextConnection {
     tcp_reader: BufReader<mio::net::TcpStream>,

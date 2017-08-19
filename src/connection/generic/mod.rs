@@ -30,72 +30,59 @@ enum GenericConnectionInner {
     Plaintext(PlaintextConnection),
 }
 
-macro_rules! impl_from {
-    ($outer:tt, $inner:tt, $src:ty, $variant:tt) => {
-        impl From<$src> for $outer {
+macro_rules! impl_generic {
+    ($($src:ty: $variant:ident;)*) => {
+        $(impl From<$src> for GenericConnection {
             fn from(original: $src) -> Self {
-                $outer {
-                    inner: $inner::$variant(original),
+                GenericConnection {
+                    inner: GenericConnectionInner::$variant(original),
+                }
+            }
+        })*
+
+        impl SendMessage for GenericConnection {
+            fn try_send<Msg>(&mut self, msg: &Msg) -> Result<()>
+            where
+                Msg: Message,
+            {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref mut conn) => conn.try_send(msg),)*
+                }
+            }
+        }
+
+        impl ReceiveMessage for GenericConnection {
+            fn recv<Msg>(&mut self) -> Result<Option<Msg>>
+            where
+                Msg: Message,
+            {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref mut conn) => conn.recv(),)*
+                }
+            }
+        }
+
+        impl GetPeerAddr for GenericConnection {
+            fn peer_addr(&self) -> Result<SocketAddr> {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref conn) => conn.peer_addr(),)*
+                }
+            }
+        }
+
+        impl GetMioTcpStream for GenericConnection {
+            fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
+                match self.inner {
+                    $(GenericConnectionInner::$variant(ref conn) => conn.mio_tcp_stream(),)*
                 }
             }
         }
     };
 }
 
-impl_from!(
-    GenericConnection,
-    GenericConnectionInner,
-    TlsConnection,
-    Tls
-);
-
-impl_from!(
-    GenericConnection,
-    GenericConnectionInner,
-    PlaintextConnection,
-    Plaintext
+impl_generic!(
+    TlsConnection: Tls;
+    PlaintextConnection: Plaintext;
 );
 
 impl Connection for GenericConnection {}
-
-impl SendMessage for GenericConnection {
-    fn try_send<Msg>(&mut self, msg: &Msg) -> Result<()>
-    where
-        Msg: Message,
-    {
-        match self.inner {
-            GenericConnectionInner::Tls(ref mut conn) => conn.try_send(msg),
-            GenericConnectionInner::Plaintext(ref mut conn) => conn.try_send(msg),
-        }
-    }
-}
-
-impl ReceiveMessage for GenericConnection {
-    fn recv<Msg>(&mut self) -> Result<Option<Msg>>
-    where
-        Msg: Message,
-    {
-        match self.inner {
-            GenericConnectionInner::Tls(ref mut conn) => conn.recv(),
-            GenericConnectionInner::Plaintext(ref mut conn) => conn.recv(),
-        }
-    }
-}
-
-impl GetPeerAddr for GenericConnection {
-    fn peer_addr(&self) -> Result<SocketAddr> {
-        match self.inner {
-            GenericConnectionInner::Tls(ref conn) => conn.peer_addr(),
-            GenericConnectionInner::Plaintext(ref conn) => conn.peer_addr(),
-        }
-    }
-}
-
-impl GetMioTcpStream for GenericConnection {
-    fn mio_tcp_stream(&self) -> &mio::net::TcpStream {
-        match self.inner {
-            GenericConnectionInner::Tls(ref conn) => conn.mio_tcp_stream(),
-            GenericConnectionInner::Plaintext(ref conn) => conn.mio_tcp_stream(),
-        }
-    }
-}
